@@ -298,10 +298,10 @@ public class NeuralNet
 		this.mutate(weightStdev, 0);
 	}
 	
-	public double[] input(double[] inputs) throws Exception
+	public double[] input(double[] inputs) throws RuntimeException
 	{
 		if (inputs.length != this.getNumInputs()) 
-			throw new Exception("Number of inputs must match number of input neurons!\n"
+			throw new RuntimeException("Number of inputs must match number of input neurons!\n"
 					+ "The number of input neurons is " + this.getNumInputs());
 					
 		double[] currentLayer = inputs;	
