@@ -1,3 +1,4 @@
+package com.asemahle.neuralnet;
 
 /**
  * Hah. I made this. Duane you didn't do it. I DID IT. It's MY INTERFACE.

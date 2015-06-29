@@ -1,3 +1,4 @@
+package com.asemahle.neuralnet;
 
 public class Test {
 
@@ -27,5 +28,4 @@ public class Test {
 		System.out.println(ne.getNumOutputs());
 		
 	}
-
 }

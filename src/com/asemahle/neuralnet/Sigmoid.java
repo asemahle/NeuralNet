@@ -1,3 +1,4 @@
+package com.asemahle.neuralnet;
 
 public class Sigmoid implements ActivationFunction {
 	
