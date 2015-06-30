@@ -46,7 +46,7 @@ public class NeuralNet
 		}
 		//weights connecting input neurons to first layer
 		this.weights[0] = new double[neuronsPerLayer][numInputs + bWeight];
-		for (int i = 0; i < this.weights.length-1; i++)
+		for (int i = 1; i < this.weights.length-1; i++)
 		{   
 			//weights between layers
 			this.weights[i] = new double[neuronsPerLayer][neuronsPerLayer + bWeight];
