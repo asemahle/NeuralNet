@@ -25,7 +25,7 @@ public class NeuralNet
 			int numLayers,
 			int neuronsPerLayer,
 			boolean hasBias,
-			ActivationFunction activationFunc) throws Exception
+			ActivationFunction activationFunc)
 	{
 		//Ensure parameters are valid
 		if (numInputs < 1) throw new RuntimeException("numInputs must be > 0");
