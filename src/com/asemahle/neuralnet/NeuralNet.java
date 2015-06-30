@@ -28,11 +28,11 @@ public class NeuralNet
 			ActivationFunction activationFunc) throws Exception
 	{
 		//Ensure parameters are valid
-		if (numInputs < 1) throw new Exception("numInputs must be > 0");
-		if (numOutputs < 1) throw new Exception("numOutputs must be > 0");
-		if (numLayers < 1) throw new Exception("numLayers must be > 0");
+		if (numInputs < 1) throw new RuntimeException("numInputs must be > 0");
+		if (numOutputs < 1) throw new RuntimeException("numOutputs must be > 0");
+		if (numLayers < 1) throw new RuntimeException("numLayers must be > 0");
 		if (neuronsPerLayer < 1) 
-			throw new Exception("neuronsPerLayer must be > 0");
+			throw new RuntimeException("neuronsPerLayer must be > 0");
 		
 		this.activationFunc = activationFunc;
 		this.hasBias = hasBias;
