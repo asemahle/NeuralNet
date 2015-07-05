@@ -97,7 +97,7 @@ public class NeuralNet
 	
 	public int getNumInputs()
 	{
-		int numInputs = this.weights[0][0].length;
+		int numInputs = this.weights[0].length;
 		return numInputs;
 	}
 	
