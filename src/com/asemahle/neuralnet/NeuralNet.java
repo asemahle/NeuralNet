@@ -36,42 +36,74 @@ public class NeuralNet
 		
 		this.activationFunc = activationFunc;
 		this.hasBias = hasBias;
-		this.weights = new double[numLayers+1][][];
+		this.weights = new double[numLayers+3][][];
+		
+		/*       VISUAL REPRESENTATION OF THE NEURAL NET WITHOUT BIAS
+		 * --------------------------------------------------------------------
+		 * With bias included, each neuron in the hidden layer would have one 
+		 * connection:
+		 *                         weights[layer][neuron][n]
+		 * ...where n represents the number of neurons in each hidden layer.
+		 * --------------------------------------------------------------------
+		 * 
+		 * weights[0][i-1][0]       
+		 *                 |             input[0]  ...   input[i] 
+		 *                 |                |               |
+		 *                  --------------------------->    |
+		 * weights[1][i-1][n-1]             |               |
+		 *                  |               0      ...      0
+         *                  |                                 \
+         *                   -------------------------------->  \  
+         * weights[2][n-1][n-1]                                   \             
+         *                  |       0               0      ...      0 neuron[n]   
+		 *                  |                                       | hiddenLayer[0]            
+		 *                   ---------------------------------->    |
+		 *                                                          |          
+		 *                          0               0      ...      0
+		 *                         ...             ...             ...
+		 * weights[l+2][n-1][o-1]   0               0      ...      0 neuron[n]
+		 *                    |                                   /   hiddenLayer[l]
+		 *                     ------------------------------>  /
+		 * weights[l+3][o-1][0]                               /
+		 *                   |              0               0
+		 *                   |              |               |
+		 *                    ------------------------->    |
+		 *                                  |               |
+		 *                              output[0]  ...  output[o]
+		 */                    
+		
 		
 		//Add an extra weight for bias, if toggled
-		int bWeight = 0;
+		int bias = 0;
 		if (this.hasBias)
 		{
-			bWeight = 1;
+		    bias = 1;
 		}
-		//weights connecting input neurons to first layer
-		this.weights[0] = new double[neuronsPerLayer][numInputs + bWeight];
-		for (int i = 1; i < this.weights.length-1; i++)
+		
+		//weights connecting from inputs to input neurons
+		this.weights[0] = new double[numInputs][1]; //No bias
+		//weights connecting from input neurons to first hidden layer
+		this.weights[1] = new double[numInputs + bias][neuronsPerLayer];
+		for (int i = 2; i < this.weights.length-2; i++)
 		{   
 			//weights between layers
-			this.weights[i] = new double[neuronsPerLayer][neuronsPerLayer + bWeight];
+			this.weights[i] = new double[neuronsPerLayer + bias][neuronsPerLayer];
 		}
-		//weights between the final layer and the output neurons
-		this.weights[numLayers] = new double[numOutputs][neuronsPerLayer + bWeight];
+		//weights between final hidden layer and output neurons
+		this.weights[this.weights.length-2] = new double[neuronsPerLayer + bias][numOutputs];
+		//final weights applied to outputs
+		this.weights[this.weights.length-1] = new double[numOutputs][1]; //No bias
 	}
 	
 	public int getNumInputs()
 	{
 		int numInputs = this.weights[0][0].length;
-		if (this.hasBias)
-		{
-			numInputs --;
-		}
 		return numInputs;
 	}
 	
 	public int getNumOutputs()
 	{
-		int numOutputs = this.weights[weights.length - 1].length;
-		if (this.hasBias)
-		{
-			numOutputs --;
-		}
+		int numOutputs = this.weights[this.weights.length - 1].length;
 		return numOutputs;
 	}
 	
@@ -93,22 +125,32 @@ public class NeuralNet
 	
 	public void initConnectionWeights(
 			double weightMean, double weightStdev,
-			double biasMean, double biasStdev)
+			double biasMean, double biasStdev,
+			double outputMean, double outputStdev)
 	{	
-		for (double[][] layer : this.weights)
+		for (int i = 0; i < this.weights.length; i++)
 		{
-			for (double[] neuron : layer)
+			for (int j = 0; j < this.weights[i].length; j++)
 			{
-				for (int conn = 0; conn < neuron.length; conn++)
+				for (int k = 0; k < this.weights[i][j].length; k++)
 				{
-					if (this.hasBias && conn == neuron.length - 1)
+					if((i != this.weights.length - 1) &&
+					        (i != 0) &&
+					        (this.hasBias) &&
+					        (j == this.weights[i].length - 1))
 					{
-						//The last connection to any neuron is the Bias (if bias is toggled)
-						neuron[conn] = this.rand.nextGaussian() * biasStdev + biasMean;
+					    //bias neuron weights
+						this.weights[i][j][k] = this.rand.nextGaussian() * biasStdev + biasMean;
+					}
+					else if(i == this.weights.length - 1 )
+					{
+					    //output neurons to output weights
+					    this.weights[i][j][k] = this.rand.nextGaussian() * outputStdev + outputMean;
 					}
 					else
 					{
-						neuron[conn] = this.rand.nextGaussian() * weightStdev + weightMean;
+					    //regular connection weights
+					    this.weights[i][j][k] = this.rand.nextGaussian() * weightStdev + weightMean;
 					}
 				}
 			}
@@ -117,125 +159,14 @@ public class NeuralNet
 	
 	public void initConnectionWeights(double weightMean, double weightStdev)
 	{
-		this.initConnectionWeights(weightMean, weightStdev, 0, 0);
+		this.initConnectionWeights(weightMean, weightStdev, 0, 0, 1, 0);
 	}
 	
-	public static void saveToFile(String filename, NeuralNet[] neuralNets) throws IOException
+	public void initConnectionWeights(
+            double weightMean, double weightStdev,
+            double biasMean, double biasStdev)
 	{
-		ArrayList<Double> output = new ArrayList<Double>();
-		
-		output.add((double)neuralNets.length); //1. Number of neural nets to save
-		for(NeuralNet nn : neuralNets)
-		{
-			double hb = 0;
-			if (nn.hasBias())
-			{
-				hb = 1;
-			}
-			output.add(hb); //2. If the net hasBias (1 or 0)
-			double[][][] weights = nn.getWeights();
-			output.add((double)weights.length); //3. Number of layers
-			for (double[][] layer : weights)
-			{
-				output.add((double)layer.length); //4. Size of the layer
-				for (double[] neuron : layer)
-				{
-					output.add((double)neuron.length); //5. Neurons in the layer
-					for (double conn : neuron)
-					{
-						output.add(conn); //6. Neuron connection weights
-					}
-				}
-			}
-		}
-
-		//output doubles to file
-		FileOutputStream fs = new FileOutputStream(filename);
-		DataOutputStream stream = new DataOutputStream(fs);
-		try {
-			for (Double oneDoubleAtATimePleaseNoMoreNoLess : output)
-			{
-				stream.writeDouble(oneDoubleAtATimePleaseNoMoreNoLess);
-			}
-		} finally {
-		    stream.close();
-		}
-	}
-
-	public static NeuralNet[] loadFromFile(String filename, ActivationFunction activationFunc)
-	{
-		InputStream is = null;
-		DataInputStream stream = null;
-		ArrayList<Double> doubles = new ArrayList<Double>();
-		
-		//Open File
-		try 
-		{
-			is = new FileInputStream(filename);
-			stream = new DataInputStream(is);
-		} 
-		catch (FileNotFoundException e) 
-		{
-			System.out.println("Could not create InputStream for " + filename);
-			e.printStackTrace();
-		}
-		
-		//Read file into arraylist of doubles
-		try 
-		{
-			while (stream.available() >= 8)
-			{
-				doubles.add(stream.readDouble());
-			}
-		} 
-		catch (IOException e) 
-		{
-			System.out.println("Problem reading doubles from " + filename);
-			e.printStackTrace();
-		} 
-		finally 
-		{
-		    try 
-		    {
-				stream.close();
-			} 
-		    catch (IOException e) 
-		    {
-				System.out.println("Could not close " + filename);
-				e.printStackTrace();
-			}
-		}
-		
-		//Create Neural nets
-		NeuralNet[] nets = new NeuralNet[doubles.remove(0).intValue()]; //1. Number of nets
-		for (int netNumber = 0; netNumber < nets.length; netNumber++)
-		{
-			boolean hasBias = true; //2. hasBias (1 if yes, 0 if no)
-			int hb = doubles.remove(0).intValue();
-			if (hb == 0)
-			{
-				hasBias = false;
-			}
-			//3. Number of layers
-			double[][][] weights = new double[doubles.remove(0).intValue()][][]; 
-			for (int layer = 0; layer < weights.length; layer++)
-			{
-				//4. Number of neurons in the layer
-				weights[layer] = new double[doubles.remove(0).intValue()][]; 
-				for (int neuron = 0; neuron < weights[layer].length; neuron++)
-				{
-					//5. Number of connections to the neuron
-					weights[layer][neuron] = new double[doubles.remove(0).intValue()]; 
-					for (int conn = 0; conn < weights[layer][neuron].length; conn++)
-					{
-						//6. Add connection weights
-						weights[layer][neuron][conn] = doubles.remove(0); 
-					}
-				}
-			}
-			nets[netNumber] = new NeuralNet(weights, hasBias, activationFunc);
-		}
-		return nets;
+	    this.initConnectionWeights(weightMean, weightStdev, biasMean, biasStdev, 1, 0);
 	}
 	
 	public static NeuralNet[] copy(NeuralNet[] neuralNets)
@@ -249,12 +180,23 @@ public class NeuralNet
 	}
 	
 	public static void mutate(
+            NeuralNet[] neuralNets,
+            double weightStdev,
+            double biasStdev,
+            double outputStdev)
+    {
+        for(NeuralNet nn : neuralNets){
+            nn.mutate(weightStdev, biasStdev, outputStdev);
+        }
+    }
+	
+	public static void mutate(
 			NeuralNet[] neuralNets,
 			double weightStdev,
 			double biasStdev)
 	{
 		for(NeuralNet nn : neuralNets){
-			nn.mutate(weightStdev,biasStdev);
+			nn.mutate(weightStdev, biasStdev);
 		}
 	}
 	
@@ -272,30 +214,45 @@ public class NeuralNet
 		return new NeuralNet(this.weights, this.hasBias, this.activationFunc);
 	}
 
+	public void mutate(double weightStdev, double biasStdev, double outputStdev)
+	{
+	    for (int i = 0; i < this.weights.length; i++)
+        {
+            for (int j = 0; j < this.weights[i].length; j++)
+            {
+                for (int k = 0; k < this.weights[i][j].length; k++)
+                {
+                    if((i != this.weights.length - 1) &&
+                            (i != 0) &&
+                            (this.hasBias) &&
+                            (j == this.weights[i].length - 1))
+                    {
+                        //bias neuron weights
+                        this.weights[i][j][k] += this.rand.nextGaussian() * biasStdev;
+                    }
+                    else if(i == this.weights.length - 1 )
+                    {
+                        //output neurons to output weights
+                        this.weights[i][j][k] += this.rand.nextGaussian() * outputStdev;
+                    }
+                    else
+                    {
+                        //regular connection weights
+                        this.weights[i][j][k] += this.rand.nextGaussian() * weightStdev;
+                    }
+                }
+            }
+        }
+	}
+	
 	public void mutate(double weightStdev, double biasStdev)
 	{
-		for (double[][] layer : this.weights)
-		{
-			for (double[] neuron : layer)
-			{
-				for (int conn = 0; conn < neuron.length; conn++)
-				{
-					if (this.hasBias && conn == neuron.length - 1)
-					{
-						neuron[conn] += this.rand.nextGaussian() * biasStdev;
-					}
-					else
-					{
-						neuron[conn] += this.rand.nextGaussian() * weightStdev;
-					}
-				}
-			}
-		}
+	    this.mutate(weightStdev, biasStdev, 0);
 	}
 	
 	public void mutate(double weightStdev)
 	{
-		this.mutate(weightStdev, 0);
+		this.mutate(weightStdev, 0, 0);
 	}
 	
 	public double[] input(double[] inputs) throws RuntimeException
@@ -304,28 +261,113 @@ public class NeuralNet
 			throw new RuntimeException("Number of inputs must match number of input neurons!\n"
 					+ "The number of input neurons is " + this.getNumInputs());
 					
-		double[] currentLayer = inputs;	
-		for (int layer = 0; layer < this.weights.length; layer++)
+		double[] neuronValues = new double[inputs.length];
+		for (int i = 0; i < inputs.length; i++)
 		{
-			double[] nextLayer = new double[this.weights[layer].length];
-			for (int neuron = 0; neuron < nextLayer.length; neuron++)
-			{
-				double sum = 0;
-				for (int i = 0; i < currentLayer.length; i++)
-				{
-					sum += currentLayer[i] * this.weights[layer][neuron][i];
-				}
-				if (this.hasBias)
-				{
-					int len = this.weights[layer][neuron].length;
-					sum += -1 * this.weights[layer][neuron][len - 1];
-				}
-				nextLayer[neuron] = this.activationFunc.call(sum);
-			}
-			currentLayer = Arrays.copyOf(nextLayer, nextLayer.length);
-		}		
-		return currentLayer;
+		    //inputs to input neurons
+		    neuronValues[i] = inputs[i] * this.weights[0][i][0];
+		}
+		
+		for (int i = 1; i < weights.length - 1; i++)
+		{
+		    //between layers
+		    neuronValues = this.calculateNextNeuronValues(neuronValues, this.weights[i]);
+		}
+		
+		for (int i = 0; i < neuronValues.length; i++)
+		{
+		    //output neurons to output
+		    neuronValues[i] *= weights[weights.length - 1][i][0];
+		}
+		
+		return neuronValues;
 	}
+	
+	public static void saveToFile(String filename, NeuralNet[] neuralNets) throws IOException
+    {
+        ArrayList<Double> output = new ArrayList<Double>();
+        
+        output.add((double)neuralNets.length); //1. Number of neural nets to save
+        for(NeuralNet nn : neuralNets)
+        {
+            double hb = 0;
+            if (nn.hasBias())
+            {
+                hb = 1;
+            }
+            output.add(hb); //2. If the net hasBias (1 or 0)
+            double[][][] weights = nn.getWeights();
+            output.add((double)weights.length); //3. Number of layers
+            for (double[][] layer : weights)
+            {
+                output.add((double)layer.length); //4. Size of the layer
+                for (double[] neuron : layer)
+                {
+                    output.add((double)neuron.length); //5. Neurons in the layer
+                    for (double conn : neuron)
+                    {
+                        output.add(conn); //6. Neuron connection weights
+                    }
+                }
+            }
+        }
+
+        //output doubles to file
+        FileOutputStream fs = new FileOutputStream(filename);
+        DataOutputStream stream = new DataOutputStream(fs);
+        try {
+            for (Double oneDoubleAtATimePleaseNoMoreNoLess : output)
+            {
+                stream.writeDouble(oneDoubleAtATimePleaseNoMoreNoLess);
+            }
+        } finally {
+            stream.close();
+        }
+    }
+
+    public static NeuralNet[] loadFromFile(String filename, ActivationFunction activationFunc) throws IOException
+    {
+        InputStream is = new FileInputStream(filename);
+        DataInputStream stream = new DataInputStream(is);
+        ArrayList<Double> doubles = new ArrayList<Double>();
+        
+        while (stream.available() >= 8)
+        {
+            doubles.add(stream.readDouble());
+        }
+        stream.close();
+        
+        //Create Neural nets
+        NeuralNet[] nets = new NeuralNet[doubles.remove(0).intValue()]; //1. Number of nets
+        for (int netNumber = 0; netNumber < nets.length; netNumber++)
+        {
+            boolean hasBias = true; //2. hasBias (1 if yes, 0 if no)
+            int hb = doubles.remove(0).intValue();
+            if (hb == 0)
+            {
+                hasBias = false;
+            }
+            //3. Number of layers
+            double[][][] weights = new double[doubles.remove(0).intValue()][][]; 
+            for (int layer = 0; layer < weights.length; layer++)
+            {
+                //4. Number of neurons in the layer
+                weights[layer] = new double[doubles.remove(0).intValue()][]; 
+                for (int neuron = 0; neuron < weights[layer].length; neuron++)
+                {
+                    //5. Number of connections to the neuron
+                    weights[layer][neuron] = new double[doubles.remove(0).intValue()]; 
+                    for (int conn = 0; conn < weights[layer][neuron].length; conn++)
+                    {
+                        //6. Add connection weights
+                        weights[layer][neuron][conn] = doubles.remove(0); 
+                    }
+                }
+            }
+            nets[netNumber] = new NeuralNet(weights, hasBias, activationFunc);
+        }
+        return nets;
+    }
 	
 	private NeuralNet(
 			double[][][] weights, 
@@ -337,18 +379,41 @@ public class NeuralNet
 		this.activationFunc = activationFunc;
 	}
 	
+	private double[] calculateNextNeuronValues(double[] neuronValues, double[][] weights)
+	{
+	    double[] nextNeuronValues = new double[weights[0].length];
+	    for (int i = 0; i < neuronValues.length; i++)
+	    {
+	        for (int j = 0; j < nextNeuronValues.length; j++)
+	        {
+	            nextNeuronValues[j] += weights[i][j] * neuronValues[i];
+	        }
+	    }
+
+        for (int i = 0; i < nextNeuronValues.length; i++)
+        {
+            if (this.hasBias)
+            {
+                nextNeuronValues[i] += weights[weights.length - 1][i] * -1;
+            }
+            nextNeuronValues[i] = this.activationFunc.call(nextNeuronValues[i]);
+        }
+        return nextNeuronValues;
+	    
+	}
+	
 	private static double[][][] copyWeights(double[][][] weights)
 	{
 		double[][][] w = new double[weights.length][][];
-		for (int layer = 0; layer < weights.length; layer++)
+		for (int i = 0; i < weights.length; i++)
 		{
-			w[layer] = new double[weights[layer].length][];
-			for (int neuron = 0; neuron < weights[layer].length; neuron++)
+			w[i] = new double[weights[i].length][];
+			for (int j = 0; j < weights[i].length; j++)
 			{
-				w[layer][neuron] = new double[weights[layer][neuron].length];
-				for (int conn = 0; conn < weights[layer][neuron].length; conn++)
+				w[i][j] = new double[weights[i][j].length];
+				for (int k = 0; k < weights[i][j].length; k++)
 				{
-					w[layer][neuron][conn] = weights[layer][neuron][conn];
+					w[i][j][k] = weights[i][j][k];
 				}
 			}
 		}
